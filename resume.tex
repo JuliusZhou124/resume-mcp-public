@@ -1,0 +1,210 @@
+%-------------------------
+% Resume in Latex
+% Author : Jake Gutierrez
+% Based off of: https://github.com/sb2nov/resume
+% License : MIT
+%------------------------
+
+\documentclass[letterpaper,11pt]{article}
+
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\input{glyphtounicode}
+
+
+%----------FONT OPTIONS----------
+% sans-serif
+% \usepackage[sfdefault]{FiraSans}
+% \usepackage[sfdefault]{roboto}
+% \usepackage[sfdefault]{noto-sans}
+% \usepackage[default]{sourcesanspro}
+
+% serif
+% \usepackage{CormorantGaramond}
+% \usepackage{charter}
+
+
+\pagestyle{fancy}
+\fancyhf{} % clear all header and footer fields
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjust margins
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
+
+\urlstyle{same}
+
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% Sections formatting
+\titleformat{\section}{
+  \vspace{-4pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
+
+% Ensure that generate pdf is machine readable/ATS parsable
+\pdfgentounicode=1
+
+%-------------------------
+% Custom commands
+\newcommand{\resumeItem}[1]{
+  \item\small{
+    {#1 \vspace{-2pt}}
+  }
+}
+
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeSubSubheading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \textit{\small#1} & \textit{\small #2} \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeProjectHeading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \small#1 & #2 \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeSubItem}[1]{\resumeItem{#1}\vspace{-4pt}}
+
+\renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+%-------------------------------------------
+%%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    \textbf{\Huge \scshape Alex Morgan} \\ \vspace{1pt}
+    \small 555-123-4567 $|$ \href{mailto:alex.morgan@example.com}{\underline{alex.morgan@example.com}} $|$
+    \href{https://www.linkedin.com/in/alexmorgan-example/}{\underline{linkedin.com/in/alexmorgan-example}} $|$
+    \href{https://github.com/alexmorgan-example}{\underline{github.com/alexmorgan-example}}
+\end{center}
+
+
+%-----------EDUCATION-----------
+\section{Education}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {State University}{Springfield, ST}
+      {Bachelor of Computer Science, \textup{GPA: 3.8/4.0}}{May 2025}
+
+        \small{\item{
+         \textbf{Certifications}{: AWS Certified Developer -- Associate, Codepath Advanced Web Development}}}
+
+  \resumeSubHeadingListEnd
+
+
+%-----------EXPERIENCE-----------
+\section{Work Experience}
+  \resumeSubHeadingListStart
+
+    \resumeSubheading
+      {Software Engineering Intern}{May 2025 - Present}
+      {Northwind Cloud}{Remote}
+      \resumeItemListStart
+        \resumeItem{Managed 64 internal microservice deployments across staging, canary, and production Kubernetes clusters daily.}
+        \resumeItem{Built a deployment dashboard cutting average rollout verification time from 30 minutes to 5 minutes for the team.}
+    \resumeItemListEnd
+    \resumeSubheading
+      {Backend Developer}{Jan 2025 - Present}
+      {Campus Technology Services}{Springfield, ST}
+    \resumeItemListStart
+        \resumeItem{Migrated the campus events portal from PHP to Node.js, supporting more than 25,000 monthly active users.}
+        \resumeItem{Improved API response times by 35\% by refactoring query batching and caching hot endpoints with Redis.}
+        \resumeItem{Standardized form validation and error handling conventions app-wide, cutting reported UI bugs by 45\%.}
+        \resumeItem{Built React pages with TailwindCSS, validated via Zod and React Hook Form, fetching cached data via SWR.}
+    \resumeItemListEnd
+
+  \resumeSubHeadingListEnd
+
+  \section{Additional Experience}
+  \resumeSubHeadingListStart
+
+    \resumeSubheading
+      {AI Research Assistant}{Sep 2024 - Dec 2024}
+      {Open Source Collective}{Remote}
+      \resumeItemListStart
+        \resumeItem{Implemented agentic RAG to answer policy questions for international nonprofit partner Helping Hands Global.}
+        \resumeItem{Tuned semantic search and retrieval parameters for a vector search pipeline backed by MongoDB Atlas Search.}
+        \resumeItem{Improved document processing throughput by 4x by parallelizing chunking and embedding across 6 workers.}
+        \resumeItem{Implemented FastAPI endpoints orchestrating Langchain agents via OpenAI, MongoDB, Redis, and Celery.}
+    \resumeItemListEnd
+
+    \resumeSubheading
+      {QA Engineer}{May 2024 - Aug 2024}
+      {University Robotics Club}{Springfield, ST}
+      \resumeItemListStart
+        \resumeItem{Designed Material UI frontend pages for competition registration forms with conditional branching logic.}
+        \resumeItem{Performed quality assurance testing on 15+ backend endpoints, finding key bugs in competition scoring logic.}
+        \resumeItem{Developed a React frontend with MUI, querying a FastAPI backend backed by a Postgres database on Docker.}
+      \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+    \resumeSubHeadingListStart
+
+    \resumeProjectHeading
+      {\textbf{Trailmap} $|$ \emph{TypeScript, NextJS, Mapbox, Vercel AI SDK}}{Mar 2025 - Present}
+      \resumeItemListStart
+        \resumeItem{Built an interactive trip-planning app rendering 3,000+ trailhead waypoints with live weather overlays for hikers.}
+        \resumeItem{Fused public trail datasets and crowd-sourced reports into a single searchable map for 12 regional parks.}
+        \resumeItem{Deployed an AI itinerary assistant using Vercel AI SDK to generate multi-day routes from user prompts.}
+    \resumeItemListEnd
+
+    \resumeProjectHeading
+      {\textbf{Lendwise (Won \$2k @ HackCampus)} $|$ \emph{NextJS, Solidity, Viem, TypeScript}}{Oct 2024 - Present}
+      \resumeItemListStart
+        \resumeItem{Built Lendwise, a peer-to-peer marketplace matching lenders and borrowers across 5 supported tokens and 3 chains.}
+        \resumeItem{Designed a risk-scoring agent analyzing collateral ratios and price feeds to flag under-collateralized loans.}
+        \resumeItem{Implemented a natural language chatbot interface to explain loan terms, rates, and risks in plain English.}
+      \resumeItemListEnd
+
+    \resumeSubHeadingListEnd
+
+%-----------PROGRAMMING SKILLS-----------
+\section{Technical Skills}
+ \begin{itemize}[leftmargin=0.15in, label={}]
+    \small{\item{
+     \textbf{Languages}{: Java, Python, C/C++, SQL (Postgres), JavaScript, TypeScript, HTML/CSS} \\
+     \textbf{Frameworks}{: Spring Boot, React, JUnit, FastAPI, NextJS, NestJS, REST APIs, Agile} \\
+     \textbf{Developer Tools}{: Git, Docker, Google Cloud Platform, Azure, Supabase, Prisma, Langchain} \\
+    }}
+ \end{itemize}
+
+%-------------------------------------------
+\end{document}
