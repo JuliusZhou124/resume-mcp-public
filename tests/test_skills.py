@@ -18,7 +18,7 @@ def test_extract_parses_three_categories():
 
     assert [c.id for c in categories] == ["s0", "s1", "s2"]
     assert [c.category for c in categories] == ["Languages", "Frameworks", "Developer Tools"]
-    assert [c.start_line for c in categories] == [319, 320, 321]
+    assert [c.start_line for c in categories] == [203, 204, 205]
 
 
 def test_tokens_keep_slash_and_paren_tokens():

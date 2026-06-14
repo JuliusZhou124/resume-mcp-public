@@ -13,7 +13,7 @@ def test_cli_bullet_by_index(capsys):
 
     out = json.loads(capsys.readouterr().out)
     assert out["bullet"] == (
-        "Managed 102 blockchain RPC nodes across bare-metal and multi-cloud Kubernetes cluster deployments."
+        "Managed 64 internal microservice deployments across staging, canary, and production Kubernetes clusters daily."
     )
     assert out["layout"]["lines"] == 1
     assert out["layout"]["page_count"] == 1
@@ -28,20 +28,20 @@ def test_cli_emits_source_block(capsys):
     out = json.loads(capsys.readouterr().out)
     assert out["source"]["id"] == "b0"
     assert out["source"]["index"] == 0
-    assert out["source"]["start_line"] == 143
-    assert out["source"]["end_line"] == 143
+    assert out["source"]["start_line"] == 138
+    assert out["source"]["end_line"] == 138
     assert out["source"]["section"] == "Work Experience"
-    assert out["source"]["role"] == "Incoming SWE Intern @ Gemini"
-    assert out["source"]["context"] == "Work Experience > Incoming SWE Intern @ Gemini"
+    assert out["source"]["role"] == "Software Engineering Intern @ Northwind Cloud"
+    assert out["source"]["context"] == "Work Experience > Software Engineering Intern @ Northwind Cloud"
 
 
 @requires_tectonic
 def test_cli_bullet_by_text(capsys):
-    exit_code = main([str(RESUME_TEX), "--bullet", "improved api performance"])
+    exit_code = main([str(RESUME_TEX), "--bullet", "improved api response"])
     assert exit_code == 0
 
     out = json.loads(capsys.readouterr().out)
-    assert out["bullet"].startswith("Improved API performance by 33%")
+    assert out["bullet"].startswith("Improved API response times by 35%")
 
 
 def test_cli_bullet_index_out_of_range(capsys):
@@ -74,7 +74,7 @@ def test_cli_candidate_mode_emits_before_after(capsys):
 
     out = json.loads(capsys.readouterr().out)
     assert out["bullet"] == (
-        "Managed 102 blockchain RPC nodes across bare-metal and multi-cloud Kubernetes cluster deployments."
+        "Managed 64 internal microservice deployments across staging, canary, and production Kubernetes clusters daily."
     )
     assert out["candidate"] == "Onchain Trading Team"
     assert "layout" not in out
@@ -127,8 +127,8 @@ def test_cli_apply_writes_to_tex_path(tmp_path, capsys):
 
     # the real resume.tex is untouched
     assert (
-        "\\resumeItem{Managed 102 blockchain RPC nodes across bare-metal and multi-cloud "
-        "Kubernetes cluster deployments.}"
+        "\\resumeItem{Managed 64 internal microservice deployments across staging, canary, "
+        "and production Kubernetes clusters daily.}"
     ) in RESUME_TEX.read_text()
 
 

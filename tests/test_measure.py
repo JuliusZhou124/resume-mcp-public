@@ -42,7 +42,7 @@ def test_measure_single_line_bullet(compiled_resume):
 
 @requires_tectonic
 def test_measure_wrapping_bullet(compiled_resume):
-    bullet = find_bullet(RESUME_TEX, text="Improved data processing performance by 4x")
+    bullet = find_bullet(RESUME_TEX, text="Improved document processing throughput by 4x")
     metrics = measure_layout(compiled_resume.pdf_path, bullet)
     assert metrics.lines == 2
     assert metrics.has_orphan is False

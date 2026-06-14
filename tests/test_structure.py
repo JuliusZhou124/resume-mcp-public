@@ -20,75 +20,73 @@ from resume_fitter.structure import (
 
 
 def test_extract_role_blocks_line_extents():
-    gemini = find_role_block(RESUME_TEX, role="Gemini")
-    assert gemini.heading_start_line == 139
-    assert gemini.block_end_line == 145
-    assert gemini.item_list_start_line == 142
-    assert gemini.item_list_end_line == 145
-    assert gemini.has_item_list is True
-    assert gemini.section == "Work Experience"
+    northwind = find_role_block(RESUME_TEX, role="Northwind Cloud")
+    assert northwind.heading_start_line == 134
+    assert northwind.block_end_line == 140
+    assert northwind.item_list_start_line == 137
+    assert northwind.item_list_end_line == 140
+    assert northwind.has_item_list is True
+    assert northwind.section == "Work Experience"
 
     qa = find_role_block(RESUME_TEX, role="QA Engineer")
-    assert qa.heading_start_line == 257
-    assert qa.block_end_line == 264
+    assert qa.heading_start_line == 166
+    assert qa.block_end_line == 173
     assert qa.has_item_list is True
 
-    raize = find_role_block(RESUME_TEX, role="Raize")
-    assert raize.heading_start_line == 291
-    assert raize.block_end_line == 298
-    assert raize.heading_macro == r"\resumeProjectHeading"
+    trailmap = find_role_block(RESUME_TEX, role="Trailmap")
+    assert trailmap.heading_start_line == 181
+    assert trailmap.block_end_line == 187
+    assert trailmap.heading_macro == r"\resumeProjectHeading"
 
-    necto = find_role_block(RESUME_TEX, role="Necto")
-    assert necto.heading_start_line == 300
-    assert necto.block_end_line == 306
+    lendwise = find_role_block(RESUME_TEX, role="Lendwise")
+    assert lendwise.heading_start_line == 189
+    assert lendwise.block_end_line == 195
 
 
 def test_find_role_block_ambiguous_and_not_found():
     with pytest.raises(BlockLookupError):
         find_role_block(RESUME_TEX, role="nonexistent role")
 
-    # "Developer" matches both "AI Developer @ Hack the Future" and
-    # "QA Engineer @ Purdue ACM SIGAPP"'s "\resumeItem{Utilized: ... Docker}"?
-    # No -- role strings only, so check a substring that hits two role titles.
+    # role strings only, so check a substring that hits two project role titles.
     with pytest.raises(BlockLookupError):
-        find_role_block(RESUME_TEX, role="@ Purdue")
+        find_role_block(RESUME_TEX, role="TypeScript")
 
 
 def test_insert_bullet_text_end_start_after():
     text = RESUME_TEX.read_text()
-    gemini = find_role_block(RESUME_TEX, role="Gemini")
+    northwind = find_role_block(RESUME_TEX, role="Northwind Cloud")
     b0 = find_bullet_record(RESUME_TEX, index=0)
     b1 = find_bullet_record(RESUME_TEX, index=1)
 
-    end_result = insert_bullet_text(text, gemini, "New end bullet.", position="end")
+    end_result = insert_bullet_text(text, northwind, "New end bullet.", position="end")
     end_lines = end_result.splitlines()
-    assert end_lines[142] == f"        \\resumeItem{{{b0.raw}}}"
-    assert end_lines[143] == f"        \\resumeItem{{{b1.raw}}}"
-    assert end_lines[144] == r"        \resumeItem{New end bullet.}"
-    assert end_lines[145] == r"    \resumeItemListEnd"
+    assert end_lines[137] == f"        \\resumeItem{{{b0.raw}}}"
+    assert end_lines[138] == f"        \\resumeItem{{{b1.raw}}}"
+    assert end_lines[139] == r"        \resumeItem{New end bullet.}"
+    assert end_lines[140] == r"    \resumeItemListEnd"
 
-    start_result = insert_bullet_text(text, gemini, "New start bullet.", position="start")
+    start_result = insert_bullet_text(text, northwind, "New start bullet.", position="start")
     start_lines = start_result.splitlines()
-    assert start_lines[142] == r"        \resumeItem{New start bullet.}"
-    assert start_lines[143] == f"        \\resumeItem{{{b0.raw}}}"
+    assert start_lines[137] == r"        \resumeItem{New start bullet.}"
+    assert start_lines[138] == f"        \\resumeItem{{{b0.raw}}}"
 
-    after_result = insert_bullet_text(text, gemini, "New after bullet.", position="after", after_index=0)
+    after_result = insert_bullet_text(text, northwind, "New after bullet.", position="after", after_index=0)
     after_lines = after_result.splitlines()
-    assert after_lines[142] == f"        \\resumeItem{{{b0.raw}}}"
-    assert after_lines[143] == r"        \resumeItem{New after bullet.}"
+    assert after_lines[137] == f"        \\resumeItem{{{b0.raw}}}"
+    assert after_lines[138] == r"        \resumeItem{New after bullet.}"
 
 
 def test_insert_bullet_text_after_index_out_of_range():
     text = RESUME_TEX.read_text()
-    gemini = find_role_block(RESUME_TEX, role="Gemini")
+    northwind = find_role_block(RESUME_TEX, role="Northwind Cloud")
 
     with pytest.raises(ValueError):
-        insert_bullet_text(text, gemini, "x", position="after", after_index=5)
+        insert_bullet_text(text, northwind, "x", position="after", after_index=5)
 
 
 def test_insert_bullet_text_requires_item_list():
     text = RESUME_TEX.read_text()
-    education = find_role_block(RESUME_TEX, role="Purdue University")
+    education = find_role_block(RESUME_TEX, role="State University")
 
     assert education.has_item_list is False
     with pytest.raises(ValueError):
@@ -123,9 +121,9 @@ def test_remove_role_block_text_removes_whole_entry():
     modified = remove_role_block_text(text, qa)
 
     assert "QA Engineer" not in modified
-    assert "Purdue ACM SIGAPP" not in modified
+    assert "University Robotics Club" not in modified
     # neighboring entries are untouched
-    assert "Hack the Future" in modified
+    assert "Open Source Collective" in modified
     assert modified.count(r"\resumeItemListStart") == text.count(r"\resumeItemListStart") - 1
     assert modified.count(r"\resumeItemListEnd") == text.count(r"\resumeItemListEnd") - 1
     assert len(text.splitlines()) - len(modified.splitlines()) == qa.block_end_line - qa.heading_start_line + 1
@@ -133,11 +131,11 @@ def test_remove_role_block_text_removes_whole_entry():
 
 def test_diff_functions_are_read_only():
     before = RESUME_TEX.read_text()
-    gemini = find_role_block(RESUME_TEX, role="Gemini")
+    northwind = find_role_block(RESUME_TEX, role="Northwind Cloud")
     record = find_bullet_record(RESUME_TEX, index=0)
     qa = find_role_block(RESUME_TEX, role="QA Engineer")
 
-    insert_diff = diff_insert_bullet(RESUME_TEX, gemini, "New bullet.")
+    insert_diff = diff_insert_bullet(RESUME_TEX, northwind, "New bullet.")
     assert "+        \\resumeItem{New bullet.}" in insert_diff.diff
 
     remove_diff = diff_remove_bullet(RESUME_TEX, record)
@@ -155,8 +153,8 @@ def test_apply_functions_write_to_given_path_only(tmp_path):
     tex_copy = tmp_path / "resume.tex"
     tex_copy.write_text(before)
 
-    gemini = find_role_block(tex_copy, role="Gemini")
-    apply_insert_bullet(tex_copy, gemini, "New bullet.")
+    northwind = find_role_block(tex_copy, role="Northwind Cloud")
+    apply_insert_bullet(tex_copy, northwind, "New bullet.")
     assert r"\resumeItem{New bullet.}" in tex_copy.read_text()
 
     record = find_bullet_record(tex_copy, text="New bullet.")

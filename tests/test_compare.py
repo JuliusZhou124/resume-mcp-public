@@ -67,11 +67,11 @@ def test_apply_ops_in_memory_add_bullet():
     text = RESUME_TEX.read_text()
 
     modified, summaries = apply_ops_in_memory(
-        RESUME_TEX, text, [{"op": "add_bullet", "role": "Gemini", "new_bullet": "New bullet."}]
+        RESUME_TEX, text, [{"op": "add_bullet", "role": "Northwind Cloud", "new_bullet": "New bullet."}]
     )
 
     assert r"\resumeItem{New bullet.}" in modified
-    assert summaries == ["add_bullet(role='Incoming SWE Intern @ Gemini')"]
+    assert summaries == ["add_bullet(role='Software Engineering Intern @ Northwind Cloud')"]
     assert RESUME_TEX.read_text() == text
 
 
@@ -98,7 +98,7 @@ def test_apply_ops_in_memory_remove_block():
     modified, summaries = apply_ops_in_memory(RESUME_TEX, text, [{"op": "remove_block", "role": "QA Engineer"}])
 
     assert "QA Engineer" not in modified
-    assert summaries == ["remove_block(role='QA Engineer @ Purdue ACM SIGAPP')"]
+    assert summaries == ["remove_block(role='QA Engineer @ University Robotics Club')"]
 
 
 def test_apply_ops_in_memory_unknown_op_raises():
@@ -122,8 +122,8 @@ def test_compare_plan_noop_keeps_page_count():
 @requires_tectonic
 def test_compare_plan_add_and_remove_nets_out():
     ops = [
-        {"op": "add_bullet", "role": "Gemini", "new_bullet": "Managed blockchain RPC node infrastructure across multiple cloud providers."},
-        {"op": "add_bullet", "role": "Gemini", "new_bullet": "Built an abstraction layer to deploy nodes to bare-metal or cloud Kubernetes, validated against AWS EKS."},
+        {"op": "add_bullet", "role": "Northwind Cloud", "new_bullet": "Managed deployment infrastructure across multiple staging and production environments."},
+        {"op": "add_bullet", "role": "Northwind Cloud", "new_bullet": "Built an abstraction layer to deploy services to bare-metal or cloud Kubernetes, validated against AWS EKS."},
         {"op": "remove_block", "role": "QA Engineer"},
     ]
 

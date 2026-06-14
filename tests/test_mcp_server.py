@@ -7,7 +7,7 @@ def test_list_bullets_returns_all_bullets():
 
     assert len(result["bullets"]) == 19
     assert result["bullets"][0]["text"] == (
-        "Managed 102 blockchain RPC nodes across bare-metal and multi-cloud Kubernetes cluster deployments."
+        "Managed 64 internal microservice deployments across staging, canary, and production Kubernetes clusters daily."
     )
     assert result["bullets"][0]["id"] == "b0"
 
@@ -15,15 +15,15 @@ def test_list_bullets_returns_all_bullets():
 def test_get_bullet_by_index():
     result = mcp_server.get_bullet(index=3)
 
-    assert result["bullet"].startswith("Improved API performance by 33%")
+    assert result["bullet"].startswith("Improved API response times by 35%")
     assert result["source"]["section"] == "Work Experience"
     assert result["evaluation"]["xyz_score"] == 1.0
 
 
 def test_get_bullet_by_text():
-    result = mcp_server.get_bullet(text="improved api performance")
+    result = mcp_server.get_bullet(text="improved api response")
 
-    assert result["bullet"].startswith("Improved API performance by 33%")
+    assert result["bullet"].startswith("Improved API response times by 35%")
 
 
 def test_get_bullet_requires_exactly_one_selector():
@@ -39,7 +39,7 @@ def test_get_bullet_index_out_of_range():
 def test_evaluate_candidate_pure_reword_is_low_truth_risk():
     result = mcp_server.evaluate_candidate(
         index=3,
-        candidate="Improved API performance by 33% by refactoring multipart payloads and serving images from alternate endpoints.",
+        candidate="Improved API response times by 35% by refactoring query batching and caching key endpoints with Redis.",
     )
 
     assert result["truth_risk"] == "low"
@@ -50,7 +50,7 @@ def test_evaluate_candidate_pure_reword_is_low_truth_risk():
 def test_evaluate_candidate_new_metric_is_high_truth_risk():
     result = mcp_server.evaluate_candidate(
         index=3,
-        candidate="Improved API performance by 1.5x refactoring multipart payloads.",
+        candidate="Improved API response times by 1.5x by refactoring query batching.",
     )
 
     assert result["truth_risk"] == "high"
@@ -207,20 +207,20 @@ def test_list_role_blocks_returns_extents():
     result = mcp_server.list_role_blocks()
     blocks = {b["role"]: b for b in result["blocks"]}
 
-    gemini = blocks["Incoming SWE Intern @ Gemini"]
-    assert gemini["heading_start_line"] == 139
-    assert gemini["block_end_line"] == 145
-    assert gemini["has_item_list"] is True
+    northwind = blocks["Software Engineering Intern @ Northwind Cloud"]
+    assert northwind["heading_start_line"] == 134
+    assert northwind["block_end_line"] == 140
+    assert northwind["has_item_list"] is True
 
-    qa = blocks["QA Engineer @ Purdue ACM SIGAPP"]
-    assert qa["heading_start_line"] == 257
-    assert qa["block_end_line"] == 264
+    qa = blocks["QA Engineer @ University Robotics Club"]
+    assert qa["heading_start_line"] == 166
+    assert qa["block_end_line"] == 173
 
 
 def test_add_bullet_without_confirm_does_not_write():
     before = RESUME_TEX.read_text()
 
-    result = mcp_server.add_bullet(role="Gemini", new_bullet="New bullet.")
+    result = mcp_server.add_bullet(role="Northwind Cloud", new_bullet="New bullet.")
 
     assert result["applied"] is False
     assert r"\resumeItem{New bullet.}" in result["diff"]
@@ -241,7 +241,7 @@ def test_add_bullet_with_confirm_writes(tmp_path, monkeypatch):
     tex_copy.write_text(RESUME_TEX.read_text())
     monkeypatch.setattr(mcp_server, "DEFAULT_TEX", tex_copy)
 
-    result = mcp_server.add_bullet(role="Gemini", new_bullet=new_bullet, confirm=True)
+    result = mcp_server.add_bullet(role="Northwind Cloud", new_bullet=new_bullet, confirm=True)
 
     assert result["applied"] is True
     assert f"\\resumeItem{{{new_bullet}}}" in tex_copy.read_text()
@@ -254,7 +254,7 @@ def test_add_bullet_with_confirm_refuses_sparse_bullet(tmp_path, monkeypatch):
     tex_copy.write_text(RESUME_TEX.read_text())
     monkeypatch.setattr(mcp_server, "DEFAULT_TEX", tex_copy)
 
-    result = mcp_server.add_bullet(role="Gemini", new_bullet="New bullet.", confirm=True)
+    result = mcp_server.add_bullet(role="Northwind Cloud", new_bullet="New bullet.", confirm=True)
 
     assert result["applied"] is False
     assert "error" in result
@@ -330,8 +330,8 @@ def test_compare_plan_layout_reports_fit():
 @requires_tectonic
 def test_compare_plan_layout_add_and_remove():
     ops = [
-        {"op": "add_bullet", "role": "Gemini", "new_bullet": "Managed blockchain RPC node infrastructure across multiple cloud providers."},
-        {"op": "add_bullet", "role": "Gemini", "new_bullet": "Built an abstraction layer to deploy nodes to bare-metal or cloud Kubernetes, validated against AWS EKS."},
+        {"op": "add_bullet", "role": "Northwind Cloud", "new_bullet": "Managed deployment infrastructure across multiple staging and production environments."},
+        {"op": "add_bullet", "role": "Northwind Cloud", "new_bullet": "Built an abstraction layer to deploy services to bare-metal or cloud Kubernetes, validated against AWS EKS."},
         {"op": "remove_block", "role": "QA Engineer"},
     ]
 
