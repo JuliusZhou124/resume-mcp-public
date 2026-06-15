@@ -7,7 +7,7 @@ def test_list_bullets_returns_all_bullets():
 
     assert len(result["bullets"]) == 19
     assert result["bullets"][0]["text"] == (
-        "Managed 64 internal microservice deployments across staging, canary, and production Kubernetes clusters daily."
+        "Operated and monitored 40 production microservices across three AWS regions, handling 1.2M requests per day."
     )
     assert result["bullets"][0]["id"] == "b0"
 
@@ -39,7 +39,7 @@ def test_get_bullet_index_out_of_range():
 def test_evaluate_candidate_pure_reword_is_low_truth_risk():
     result = mcp_server.evaluate_candidate(
         index=3,
-        candidate="Improved API response times by 35% by refactoring query batching and caching key endpoints with Redis.",
+        candidate="Improved API response times by 35% by restructuring N+1 queries and caching hot endpoints with Memcached.",
     )
 
     assert result["truth_risk"] == "low"
@@ -144,7 +144,7 @@ def test_get_skill_category_by_name():
     result = mcp_server.get_skill_category(category="frameworks")
 
     assert result["category"] == "Frameworks"
-    assert "React" in result["tokens"]
+    assert "Vue" in result["tokens"]
 
 
 def test_get_skill_category_requires_exactly_one_selector():

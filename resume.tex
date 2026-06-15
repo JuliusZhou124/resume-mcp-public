@@ -119,10 +119,10 @@
   \resumeSubHeadingListStart
     \resumeSubheading
       {State University}{Springfield, ST}
-      {Bachelor of Computer Science, \textup{GPA: 3.8/4.0}}{May 2025}
+      {Bachelor of Computer Science, \textup{GPA: 3.7/4.0}}{May 2025}
 
         \small{\item{
-         \textbf{Certifications}{: AWS Certified Developer -- Associate, Codepath Advanced Web Development}}}
+         \textbf{Certifications}{: Oracle Certified Associate -- Java SE 11, freeCodeCamp Responsive Web Design}}}
 
   \resumeSubHeadingListEnd
 
@@ -135,17 +135,17 @@
       {Software Engineering Intern}{May 2025 - Present}
       {Northwind Cloud}{Remote}
       \resumeItemListStart
-        \resumeItem{Managed 64 internal microservice deployments across staging, canary, and production Kubernetes clusters daily.}
-        \resumeItem{Built a deployment dashboard cutting average rollout verification time from 30 minutes to 5 minutes for the team.}
+        \resumeItem{Operated and monitored 40 production microservices across three AWS regions, handling 1.2M requests per day.}
+        \resumeItem{Built an internal CLI tool that scaffolds services from templates, cutting setup time from 2 days to 1 hour.}
     \resumeItemListEnd
     \resumeSubheading
       {Backend Developer}{Jan 2025 - Present}
       {Campus Technology Services}{Springfield, ST}
     \resumeItemListStart
-        \resumeItem{Migrated the campus events portal from PHP to Node.js, supporting more than 25,000 monthly active users.}
-        \resumeItem{Improved API response times by 35\% by refactoring query batching and caching hot endpoints with Redis.}
-        \resumeItem{Standardized form validation and error handling conventions app-wide, cutting reported UI bugs by 45\%.}
-        \resumeItem{Built React pages with TailwindCSS, validated via Zod and React Hook Form, fetching cached data via SWR.}
+        \resumeItem{Migrated the campus events portal from PHP to Django, supporting more than 30,000 monthly active users.}
+        \resumeItem{Improved API response times by 35\% by batching N+1 queries and caching hot endpoints with Memcached.}
+        \resumeItem{Added structured logging and request tracing across all backend services, cutting incident debugging time by 60\%.}
+        \resumeItem{Built Vue 3 dashboards with Pinia, served via an Express API, with charts powered by Elasticsearch aggregations.}
     \resumeItemListEnd
 
   \resumeSubHeadingListEnd
@@ -157,19 +157,19 @@
       {AI Research Assistant}{Sep 2024 - Dec 2024}
       {Open Source Collective}{Remote}
       \resumeItemListStart
-        \resumeItem{Implemented agentic RAG to answer policy questions for international nonprofit partner Helping Hands Global.}
-        \resumeItem{Tuned semantic search and retrieval parameters for a vector search pipeline backed by MongoDB Atlas Search.}
-        \resumeItem{Improved document processing throughput by 4x by parallelizing chunking and embedding storage across 6 concurrent Celery workers with Redis caching for faster retrieval and lower memory usage every single night.}
-        \resumeItem{Implemented FastAPI endpoints orchestrating Langchain agents via OpenAI, MongoDB, Redis, and Celery.}
+        \resumeItem{Built a pipeline tagging 50,000+ grant proposals by topic for nonprofit partner Bright Path Foundation.}
+        \resumeItem{Fine-tuned a sentence-embedding model, raising retrieval precision@5 from 0.61 to 0.84 on an internal eval set.}
+        \resumeItem{Migrated a nightly cron-based ETL job to an event-driven Airflow DAG with automatic retries and Slack alerts, cutting end-to-end processing latency from 6 hours to 45 minutes across the reporting pipeline.}
+        \resumeItem{Containerized the inference service with Docker and deployed it to a Kubernetes cluster behind an Nginx proxy.}
     \resumeItemListEnd
 
     \resumeSubheading
       {QA Engineer}{May 2024 - Aug 2024}
       {University Robotics Club}{Springfield, ST}
       \resumeItemListStart
-        \resumeItem{Designed Material UI frontend pages for competition registration forms with conditional branching logic.}
-        \resumeItem{Performed quality assurance testing on 15+ backend endpoints, finding key bugs in competition scoring logic.}
-        \resumeItem{Developed a React frontend with MUI, querying a FastAPI backend backed by a Postgres database on Docker.}
+        \resumeItem{Wrote Cypress end-to-end test suites covering 12 critical user flows in the telemetry dashboard application.}
+        \resumeItem{Triaged and filed 60 defect reports across firmware and web clients, prioritizing fixes by severity with the dev team.}
+        \resumeItem{Built a Go service exposing match-scoring data via gRPC to a React Native scoreboard app for live events.}
       \resumeItemListEnd
 
 \resumeSubHeadingListEnd
@@ -179,19 +179,19 @@
     \resumeSubHeadingListStart
 
     \resumeProjectHeading
-      {\textbf{Trailmap} $|$ \emph{TypeScript, NextJS, Mapbox, Vercel AI SDK}}{Mar 2025 - Present}
+      {\textbf{Trailmap} $|$ \emph{TypeScript, Svelte, Mapbox, Vercel AI SDK}}{Mar 2025 - Present}
       \resumeItemListStart
-        \resumeItem{Built an interactive trip-planning app rendering 3,000+ trailhead waypoints with live weather overlays for hikers.}
-        \resumeItem{Fused public trail datasets and crowd-sourced reports into a single searchable map for 12 regional parks.}
-        \resumeItem{Deployed an AI itinerary assistant using Vercel AI SDK to generate multi-day routes from user prompts.}
+        \resumeItem{Built an interactive trip-planning app rendering 4,000+ trail markers with live weather overlays for hikers.}
+        \resumeItem{Combined public trail datasets and crowd-sourced reports into a single searchable map covering 18 regional parks.}
+        \resumeItem{Added an AI itinerary assistant using the Vercel AI SDK to generate routes from natural-language prompts.}
     \resumeItemListEnd
 
     \resumeProjectHeading
-      {\textbf{Lendwise (Won \$2k @ HackCampus)} $|$ \emph{NextJS, Solidity, Viem, TypeScript}}{Oct 2024 - Present}
+      {\textbf{Lendwise (Won \$2k @ HackCampus)} $|$ \emph{Svelte, Solidity, Viem, TypeScript}}{Oct 2024 - Present}
       \resumeItemListStart
-        \resumeItem{Built Lendwise, a peer-to-peer marketplace matching lenders and borrowers across 5 supported tokens and 3 chains.}
-        \resumeItem{Designed a risk-scoring agent analyzing collateral ratios and price feeds to flag under-collateralized loans.}
-        \resumeItem{Implemented a natural language chatbot interface to explain loan terms, rates, and risks in plain English.}
+        \resumeItem{Built Lendwise, a marketplace matching lenders and borrowers across 6 supported tokens on 2 EVM chains.}
+        \resumeItem{Designed a risk-scoring engine analyzing collateral ratios and price feeds to flag under-collateralized loans.}
+        \resumeItem{Built a natural-language chatbot interface explaining loan terms, rates, and repayment risk in plain English.}
       \resumeItemListEnd
 
     \resumeSubHeadingListEnd
@@ -200,9 +200,9 @@
 \section{Technical Skills}
  \begin{itemize}[leftmargin=0.15in, label={}]
     \small{\item{
-     \textbf{Languages}{: Java, Python, C/C++, SQL (Postgres), JavaScript, TypeScript, HTML/CSS} \\
-     \textbf{Frameworks}{: Spring Boot, React, JUnit, FastAPI, NextJS, NestJS, REST APIs, Agile } \\
-     \textbf{Developer Tools}{: Git, Docker, Google Cloud Platform, Azure, Supabase, Prisma, Langchain} \\
+     \textbf{Languages}{: Python, Java, Go, C/C++, SQL (Postgres), JavaScript, TypeScript, HTML/CSS} \\
+     \textbf{Frameworks}{: Django, Vue, Express, FastAPI, GraphQL, gRPC, REST APIs, Agile } \\
+     \textbf{Developer Tools}{: Git, Docker, AWS, Terraform, Kafka, Elasticsearch, Jenkins} \\
     }}
  \end{itemize}
 

@@ -13,7 +13,7 @@ def test_cli_bullet_by_index(capsys):
 
     out = json.loads(capsys.readouterr().out)
     assert out["bullet"] == (
-        "Managed 64 internal microservice deployments across staging, canary, and production Kubernetes clusters daily."
+        "Operated and monitored 40 production microservices across three AWS regions, handling 1.2M requests per day."
     )
     assert out["layout"]["lines"] == 1
     assert out["layout"]["page_count"] == 1
@@ -74,7 +74,7 @@ def test_cli_candidate_mode_emits_before_after(capsys):
 
     out = json.loads(capsys.readouterr().out)
     assert out["bullet"] == (
-        "Managed 64 internal microservice deployments across staging, canary, and production Kubernetes clusters daily."
+        "Operated and monitored 40 production microservices across three AWS regions, handling 1.2M requests per day."
     )
     assert out["candidate"] == "Onchain Trading Team"
     assert "layout" not in out
@@ -127,8 +127,8 @@ def test_cli_apply_writes_to_tex_path(tmp_path, capsys):
 
     # the real resume.tex is untouched
     assert (
-        "\\resumeItem{Managed 64 internal microservice deployments across staging, canary, "
-        "and production Kubernetes clusters daily.}"
+        "\\resumeItem{Operated and monitored 40 production microservices across three AWS regions, "
+        "handling 1.2M requests per day.}"
     ) in RESUME_TEX.read_text()
 
 

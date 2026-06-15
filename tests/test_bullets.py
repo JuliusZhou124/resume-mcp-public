@@ -33,7 +33,7 @@ def test_strip_latex_unwraps_formatting_and_escapes():
 def test_find_bullet_by_index():
     bullet = find_bullet(RESUME_TEX, index=0)
     assert bullet == (
-        "Managed 64 internal microservice deployments across staging, canary, and production Kubernetes clusters daily."
+        "Operated and monitored 40 production microservices across three AWS regions, handling 1.2M requests per day."
     )
 
 
@@ -62,25 +62,25 @@ def test_find_bullet_requires_exactly_one_selector():
 def test_extract_bullets_line_numbers():
     bullets = {b.text[:40]: b for b in extract_bullets(RESUME_TEX)}
 
-    b0 = bullets["Managed 64 internal microservice deploym"]
+    b0 = bullets["Operated and monitored 40 production mic"]
     assert b0.start_line == 138
     assert b0.end_line == 138
 
     migrated = bullets["Migrated the campus events portal from P"]
     assert migrated.start_line == 145
 
-    improved = bullets["Improved API response times by 35% by re"]
+    improved = bullets["Improved API response times by 35% by ba"]
     assert improved.start_line == 146
 
 
 def test_extract_bullets_section_and_role_context():
     bullets = {b.text[:40]: b for b in extract_bullets(RESUME_TEX)}
 
-    b0 = bullets["Managed 64 internal microservice deploym"]
+    b0 = bullets["Operated and monitored 40 production mic"]
     assert b0.section == "Work Experience"
     assert b0.role == "Software Engineering Intern @ Northwind Cloud"
 
-    improved = bullets["Improved API response times by 35% by re"]
+    improved = bullets["Improved API response times by 35% by ba"]
     assert improved.section == "Work Experience"
     assert improved.role == "Backend Developer @ Campus Technology Services"
 
