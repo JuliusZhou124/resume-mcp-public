@@ -16,14 +16,38 @@ specificity/verbosity scoring and no pdfplumber line-layout measurement here.
 from __future__ import annotations
 
 import difflib
+import os
 import re
-import tempfile
+import threading
+from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
-
 from .bullets import extract_bullets, strip_latex
 from .compile import BoxWarning, compile_tex
+from .compare import _before_after_compile
 from .measure import page_count
+
+
+# Extraction cache for the Technical Skills block, keyed on (path, mtime,
+# size) and invalidated on write.  Parallels bullets._parse_cache so a
+# session's repeated list_skill_categories/get_skill_category/evidence
+# calls skip the file read + regex scan.  Bounded LRU (OrderedDict) so a
+# long session can't accumulate stale entries; cache returns a shallow copy
+# so callers can't mutate the cached list.
+_MAX_SKILL_CACHE_ENTRIES = 32
+_skill_cache_lock = threading.Lock()
+_skill_cache: "OrderedDict[tuple, list]" = OrderedDict()
+
+
+def clear_skill_parse_cache() -> None:
+    """Clear the Technical Skills parse cache."""
+    with _skill_cache_lock:
+        _skill_cache.clear()
+
+
+def _skill_key(tex_path: Path) -> tuple:
+    st = os.stat(tex_path)
+    return (str(tex_path), st.st_mtime_ns, st.st_size)
 
 _SKILLS_SECTION_RE = re.compile(r"\\section\{Technical Skills\}")
 _CATEGORY_LINE_RE = re.compile(r"^\s*\\textbf\{([^{}]*)\}\{:\s(.*)\}\s*\\\\\s*$")
@@ -56,10 +80,9 @@ def _split_tokens(items: str) -> list[str]:
     return [t.strip() for t in items.split(",") if t.strip()]
 
 
-def extract_skill_categories(tex_path: Path) -> list[SkillCategory]:
-    """Return every ``\\textbf{<Category>}{: <items>}`` line in the
-    ``\\section{Technical Skills}`` block, in source order."""
-    lines = Path(tex_path).read_text().splitlines()
+def extract_skill_categories_from_text(raw_text: str) -> list[SkillCategory]:
+    """Text-core: return every Technical Skills category from ``raw_text``."""
+    lines = raw_text.splitlines()
 
     section_idx = None
     for i, line in enumerate(lines):
@@ -100,6 +123,29 @@ def extract_skill_categories(tex_path: Path) -> list[SkillCategory]:
     return categories
 
 
+def extract_skill_categories(tex_path: Path) -> list[SkillCategory]:
+    """Return every ``\\textbf{<Category>}{: <items>}`` line in the
+    ``\\section{Technical Skills}`` block, in source order.
+
+    Cached on (path, mtime, size); call ``clear_skill_parse_cache`` to
+    invalidate after a write to the same file.
+    """
+    key = _skill_key(tex_path)
+    with _skill_cache_lock:
+        cached = _skill_cache.get(key)
+        if cached is not None:
+            _skill_cache.move_to_end(key)
+            # Return a shallow copy so callers can't mutate the cached list.
+            return list(cached)
+    result = extract_skill_categories_from_text(Path(tex_path).read_text())
+    with _skill_cache_lock:
+        _skill_cache[key] = result
+        _skill_cache.move_to_end(key)
+        while len(_skill_cache) > _MAX_SKILL_CACHE_ENTRIES:
+            _skill_cache.popitem(last=False)
+    return list(result)
+
+
 def list_skill_categories(tex_path: Path) -> list[SkillCategory]:
     return extract_skill_categories(tex_path)
 
@@ -119,6 +165,33 @@ def find_skill_record(
         raise ValueError("specify exactly one of category or index")
 
     categories = extract_skill_categories(tex_path)
+
+    if index is not None:
+        if not (0 <= index < len(categories)):
+            raise SkillLookupError(
+                f"skill category index {index} out of range (found {len(categories)} categories)"
+            )
+        return categories[index]
+
+    needle = category.lower()
+    for record in categories:
+        if needle in record.category.lower():
+            return record
+
+    raise SkillLookupError(f"no skill category matching: {category!r}")
+
+
+def find_skill_record_from_text(
+    raw_text: str,
+    *,
+    category: str | None = None,
+    index: int | None = None,
+) -> SkillCategory:
+    """Text-core: resolve a skill category against in-memory ``raw_text``."""
+    if (category is None) == (index is None):
+        raise ValueError("specify exactly one of category or index")
+
+    categories = extract_skill_categories_from_text(raw_text)
 
     if index is not None:
         if not (0 <= index < len(categories)):
@@ -276,24 +349,13 @@ def compare_skill_candidate(
     """
     tex_path = Path(tex_path)
     original_text = tex_path.read_text()
-
-    with tempfile.TemporaryDirectory() as before_dir:
-        before_compile = compile_tex(tex_path, Path(before_dir), tectonic_path=tectonic_path)
-        before_page_count = page_count(before_compile.pdf_path)
-
     modified_text = substitute_skill(original_text, record, new_items)
 
-    with tempfile.TemporaryDirectory() as after_dir:
-        modified_tex = Path(after_dir) / tex_path.name
-        modified_tex.write_text(modified_text)
-
-        after_compile = compile_tex(modified_tex, Path(after_dir) / "out", tectonic_path=tectonic_path)
-        after_page_count = page_count(after_compile.pdf_path)
-
-    return SkillComparison(
-        before_page_count=before_page_count,
-        after_page_count=after_page_count,
-        before_overfull=before_compile.overfull,
-        after_overfull=after_compile.overfull,
-        after_box_warnings=after_compile.box_warnings,
-    )
+    with _before_after_compile(tex_path, modified_text, tectonic_path=tectonic_path) as (before_compile, after_compile):
+        return SkillComparison(
+            before_page_count=page_count(before_compile.pdf_path),
+            after_page_count=page_count(after_compile.pdf_path),
+            before_overfull=before_compile.overfull,
+            after_overfull=after_compile.overfull,
+            after_box_warnings=after_compile.box_warnings,
+        )

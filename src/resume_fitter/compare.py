@@ -10,13 +10,15 @@ substitution only (no escaping), matching the boundary of CONCEPT.md's future
 
 from __future__ import annotations
 
+import shutil
 import tempfile
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-from .bullets import Bullet, find_bullet_record, find_role_block, strip_latex
+from .bullets import Bullet, find_bullet_record, find_bullet_record_from_text, find_role_block, find_role_block_from_text, find_unescaped_specials, strip_latex
 from .compile import BoxWarning, compile_tex
-from .measure import BulletMetrics, measure_layout, page_count
+from .measure import BulletMetrics, measure_layout, page_count, page_fill_ratio
 from .structure import insert_bullet_text, remove_bullet_text, remove_role_block_text
 
 
@@ -41,10 +43,43 @@ def measure_candidate_layout(
         modified_tex = Path(after_dir) / tex_path.name
         modified_tex.write_text(modified_text)
 
-        after_compile = compile_tex(modified_tex, Path(after_dir) / "out", tectonic_path=tectonic_path)
+        after_compile = compile_tex(modified_tex, Path(after_dir) / "out", tectonic_path=tectonic_path, use_cache=False)
         after_metrics = measure_layout(after_compile.pdf_path, candidate_text)
 
     return after_metrics, after_compile.overfull, after_compile.box_warnings
+
+
+@contextmanager
+def _before_after_compile(
+    tex_path: Path,
+    modified_text: str,
+    *,
+    tectonic_path: str | None = None,
+):
+    """Compile ``tex_path`` baseline (cached) + ``modified_text`` (one-shot).
+
+    Shared skeleton for the bullet- and skill-compare paths: both do a
+    before/after tectonic compile against the original + an in-memory
+    substitution. Yields ``(before_compile, after_compile)`` and keeps both
+    temp PDFs alive until the caller exits the ``with`` block, so measurements
+    (``measure_layout`` / ``page_count``) read valid files.
+    """
+    tex_path = Path(tex_path)
+    before_dir = tempfile.mkdtemp()
+    after_dir = tempfile.mkdtemp()
+    try:
+        before_compile = compile_tex(tex_path, Path(before_dir), tectonic_path=tectonic_path)
+
+        modified_tex = Path(after_dir) / tex_path.name
+        modified_tex.write_text(modified_text)
+        after_compile = compile_tex(
+            modified_tex, Path(after_dir) / "out", tectonic_path=tectonic_path, use_cache=False
+        )
+
+        yield before_compile, after_compile
+    finally:
+        shutil.rmtree(before_dir, ignore_errors=True)
+        shutil.rmtree(after_dir, ignore_errors=True)
 
 
 @dataclass
@@ -69,6 +104,14 @@ def substitute_bullet(tex_text: str, record: Bullet, candidate: str) -> str:
     found, so a missed substitution never silently produces an unmodified
     file.
     """
+    unsafe = find_unescaped_specials(candidate)
+    if unsafe:
+        raise ValueError(
+            f"candidate contains unescaped LaTeX special character(s) {unsafe} -- "
+            "escape as \\%, \\&, \\#, or \\_ (this would otherwise compile but "
+            "break or silently truncate the bullet)"
+        )
+
     old = "\\resumeItem{" + record.raw + "}"
     if tex_text.count(old) < 1:
         raise ValueError(
@@ -120,6 +163,8 @@ class PlanComparison:
     after_overfull: bool
     after_box_warnings: list[BoxWarning]
     applied_ops: list[str]
+    before_page_fill: float
+    after_page_fill: float
 
     @property
     def page_count_changed(self) -> bool:
@@ -140,42 +185,39 @@ def apply_ops_in_memory(tex_path: Path, tex_text: str, ops: list[dict]) -> tuple
         ``{"op": "remove_bullet", "text": str}``
       - ``{"op": "remove_block", "role": str}``
 
-    Targets are re-resolved against the *evolving* text before each op (via a
-    temp-file round trip), since earlier ops shift line numbers. Returns
-    ``(modified_text, summaries)`` -- one human-readable summary per op, in
-    order. Never writes to ``tex_path``.
+    Targets are re-resolved against the *evolving* text before each op,
+    since earlier ops shift line numbers. Using the text-core resolvers
+    (``find_role_block_from_text`` / ``find_bullet_record_from_text``) means
+    no temp-file round-trip per op. Returns ``(modified_text, summaries)``
+    -- one human-readable summary per op, in order. Never writes to
+    ``tex_path``.
     """
-    tex_path = Path(tex_path)
     current_text = tex_text
     summaries: list[str] = []
 
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_tex = Path(tmp) / tex_path.name
+    for op in ops:
+        kind = op.get("op")
 
-        for op in ops:
-            tmp_tex.write_text(current_text)
-            kind = op.get("op")
-
-            if kind == "add_bullet":
-                block = find_role_block(tmp_tex, role=op["role"])
-                current_text = insert_bullet_text(
-                    current_text,
-                    block,
-                    op["new_bullet"],
-                    position=op.get("position", "end"),
-                    after_index=op.get("after_index"),
-                )
-                summaries.append(f"add_bullet(role={block.role!r})")
-            elif kind == "remove_bullet":
-                record = find_bullet_record(tmp_tex, index=op.get("index"), text=op.get("text"))
-                current_text = remove_bullet_text(current_text, record)
-                summaries.append(f"remove_bullet(id={record.id!r}, text={record.text!r})")
-            elif kind == "remove_block":
-                block = find_role_block(tmp_tex, role=op["role"])
-                current_text = remove_role_block_text(current_text, block)
-                summaries.append(f"remove_block(role={block.role!r})")
-            else:
-                raise ValueError(f"unknown op type: {kind!r}")
+        if kind == "add_bullet":
+            block = find_role_block_from_text(current_text, role=op["role"])
+            current_text = insert_bullet_text(
+                current_text,
+                block,
+                op["new_bullet"],
+                position=op.get("position", "end"),
+                after_index=op.get("after_index"),
+            )
+            summaries.append(f"add_bullet(role={block.role!r})")
+        elif kind == "remove_bullet":
+            record = find_bullet_record_from_text(current_text, index=op.get("index"), text=op.get("text"))
+            current_text = remove_bullet_text(current_text, record)
+            summaries.append(f"remove_bullet(id={record.id!r}, text={record.text!r})")
+        elif kind == "remove_block":
+            block = find_role_block_from_text(current_text, role=op["role"])
+            current_text = remove_role_block_text(current_text, block)
+            summaries.append(f"remove_block(role={block.role!r})")
+        else:
+            raise ValueError(f"unknown op type: {kind!r}")
 
     return current_text, summaries
 
@@ -197,6 +239,7 @@ def compare_plan(
     with tempfile.TemporaryDirectory() as before_dir:
         before_compile = compile_tex(tex_path, Path(before_dir), tectonic_path=tectonic_path)
         before_page_count = page_count(before_compile.pdf_path)
+        before_fill = page_fill_ratio(before_compile.pdf_path)
 
     modified_text, summaries = apply_ops_in_memory(tex_path, original_text, ops)
 
@@ -204,8 +247,9 @@ def compare_plan(
         modified_tex = Path(after_dir) / tex_path.name
         modified_tex.write_text(modified_text)
 
-        after_compile = compile_tex(modified_tex, Path(after_dir) / "out", tectonic_path=tectonic_path)
+        after_compile = compile_tex(modified_tex, Path(after_dir) / "out", tectonic_path=tectonic_path, use_cache=False)
         after_page_count = page_count(after_compile.pdf_path)
+        after_fill = page_fill_ratio(after_compile.pdf_path)
 
     return PlanComparison(
         before_page_count=before_page_count,
@@ -214,4 +258,6 @@ def compare_plan(
         after_overfull=after_compile.overfull,
         after_box_warnings=after_compile.box_warnings,
         applied_ops=summaries,
+        before_page_fill=before_fill,
+        after_page_fill=after_fill,
     )

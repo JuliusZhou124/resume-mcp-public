@@ -13,10 +13,53 @@ list, not a rewritable prose bullet, and is intentionally not extracted.
 
 from __future__ import annotations
 
+import os
 import re
+import threading
 from bisect import bisect_right
+from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
+
+# Parsed-body + extraction cache.  _load_body does the bulk of the work
+# (read + comment-strip + offset map); extract_bullets/extract_role_blocks
+# layer a macro scan on top.  In a session the same file is parsed over and
+# over (list_bullets -> get_bullet -> apply gate), so cache keyed on
+# (path, mtime, size) and invalidate on write.  Bounded LRU (OrderedDict)
+# so a long session — or an automation loop issuing many resume mutations,
+# each producing a new mtime —— can't accumulate thousands of stale entries.
+# Thread-safe via a single lock; the cached values are immutable tuples of
+# immutable/frozen dataclasses so sharing across callers is safe.
+_MAX_PARSE_CACHE_ENTRIES = 32
+_parse_cache_lock = threading.Lock()
+_parse_cache: "OrderedDict[tuple, tuple]" = OrderedDict()
+
+
+def clear_parse_cache() -> None:
+    """Clear the bullet/role-block parse cache."""
+    with _parse_cache_lock:
+        _parse_cache.clear()
+
+
+def _parse_key(tex_path: Path) -> tuple:
+    st = os.stat(tex_path)
+    return (str(tex_path), st.st_mtime_ns, st.st_size)
+
+
+def _cached_load_body(tex_path: Path):
+    key = _parse_key(tex_path)
+    with _parse_cache_lock:
+        cached = _parse_cache.get(key)
+        if cached is not None:
+            _parse_cache.move_to_end(key)
+    if cached is None:
+        cached = _load_body_from_text(Path(tex_path).read_text())
+        with _parse_cache_lock:
+            _parse_cache[key] = cached
+            _parse_cache.move_to_end(key)
+            while len(_parse_cache) > _MAX_PARSE_CACHE_ENTRIES:
+                _parse_cache.popitem(last=False)
+    return cached
 
 _WRAP_COMMAND_RE = re.compile(r"\\(?:textbf|textit|emph|underline|small|texttt)\s*\{")
 
@@ -27,6 +70,26 @@ _ESCAPED_CHARS = {
     r"\#": "#",
     r"\_": "_",
 }
+
+# Characters that break compilation if they appear unescaped in a
+# \resumeItem body ("%" starts a comment, "&"/"#" are tabular/macro-arg
+# tokens, "_" triggers math-mode subscript outside math mode). "$" is
+# deliberately excluded -- this resume's templates use bare "$" for
+# inline math (e.g. "$4k", "$|$") and that usage is legitimate.
+_UNSAFE_RAW_RE = re.compile(r"(?<!\\)[%&#_]")
+
+
+def find_unescaped_specials(text: str) -> list[str]:
+    """Return the sorted set of unescaped LaTeX-unsafe characters in ``text``.
+
+    Used by ``compare.substitute_bullet`` and ``structure.insert_bullet_text``
+    so both the single-bullet (``apply_bullet``) and structural
+    (``add_bullet``/``compare_plan_layout``) write paths reject the same
+    unescaped input with the same clear error, instead of one path failing
+    fast and the other surfacing a cryptic tectonic "Runaway argument" error
+    deep in a compile log.
+    """
+    return sorted({m.group(0) for m in _UNSAFE_RAW_RE.finditer(text)})
 
 # macro name -> number of brace-delimited arguments to capture
 _MACRO_ARG_COUNTS = {
@@ -165,7 +228,7 @@ def _scan_macros(body: str) -> list[tuple[str, list[str], int, int]]:
     return events
 
 
-def _load_body(tex_path: Path):
+def _load_body_from_text(raw_text: str):
     """Strip comments from the document body and return helpers shared by the
     bullet- and role-block-extraction passes.
 
@@ -175,8 +238,13 @@ def _load_body(tex_path: Path):
     1-based source line number), ``body`` is those lines joined with ``"\\n"``
     (the string ``_scan_macros`` operates on), and ``offset_to_line`` maps a
     character offset into ``body`` back to a 1-based source line number.
+
+    Text-core: takes the raw source string, never touches disk.  The path
+    shell ``_load_body`` reads the file and delegates here; the public
+    ``extract_*_from_text`` path uses this directly so multi-op plans can
+    operate on evolving in-memory text without temp-file round-trips.
     """
-    raw_lines = Path(tex_path).read_text().splitlines()
+    raw_lines = raw_text.splitlines()
 
     body_start_idx = 0
     for i, line in enumerate(raw_lines):
@@ -202,10 +270,13 @@ def _load_body(tex_path: Path):
     return stripped_lines, line_numbers, body, offset_to_line
 
 
-def extract_bullets(tex_path: Path) -> list[Bullet]:
-    """Return every ``\\resumeItem`` in source order with location and context."""
-    _, _, body, offset_to_line = _load_body(tex_path)
+def _load_body(tex_path: Path):
+    """Path shell for :func:`_load_body_from_text`; reads the file and caches."""
+    return _cached_load_body(tex_path)
 
+
+def _bullets_from_body(body: str, offset_to_line) -> list[Bullet]:
+    """Scan a stripped document ``body`` (with its offset->line map) for bullets."""
     bullets: list[Bullet] = []
     current_section: str | None = None
     current_role: str | None = None
@@ -237,6 +308,22 @@ def extract_bullets(tex_path: Path) -> list[Bullet]:
     return bullets
 
 
+def extract_bullets_from_text(raw_text: str) -> list[Bullet]:
+    """Text-core: return every ``\\resumeItem`` in source order, no disk I/O."""
+    _, _, body, offset_to_line = _load_body_from_text(raw_text)
+    return _bullets_from_body(body, offset_to_line)
+
+
+def extract_bullets(tex_path: Path) -> list[Bullet]:
+    """Return every ``\\resumeItem`` in source order with location and context.
+
+    Uses the cached body parse; for evolving in-memory text use
+    :func:`extract_bullets_from_text`.
+    """
+    _, _, body, offset_to_line = _cached_load_body(tex_path)
+    return _bullets_from_body(body, offset_to_line)
+
+
 def list_bullets(tex_path: Path) -> list[str]:
     """Return the plain-text content of every ``\\resumeItem`` in source order."""
     return [bullet.text for bullet in extract_bullets(tex_path)]
@@ -253,10 +340,14 @@ def find_bullet_record(
     Exactly one of ``text`` (case-insensitive substring of the bullet's
     rendered text) or ``index`` (0-based, in source order) must be given.
     """
+    bullets = extract_bullets(tex_path)
+    return find_bullet_record_in(bullets, text=text, index=index)
+
+
+def find_bullet_record_in(bullets: list[Bullet], *, text: str | None = None, index: int | None = None) -> Bullet:
+    """Resolve a bullet identifier against an already-extracted bullet list."""
     if (text is None) == (index is None):
         raise ValueError("specify exactly one of text or index")
-
-    bullets = extract_bullets(tex_path)
 
     if index is not None:
         if not (0 <= index < len(bullets)):
@@ -271,6 +362,11 @@ def find_bullet_record(
             return bullet
 
     raise BulletLookupError(f"no bullet matching text: {text!r}")
+
+
+def find_bullet_record_from_text(raw_text: str, *, text: str | None = None, index: int | None = None) -> Bullet:
+    """Text-core: resolve a bullet identifier against in-memory ``raw_text``."""
+    return find_bullet_record_in(extract_bullets_from_text(raw_text), text=text, index=index)
 
 
 def find_bullet(
@@ -294,13 +390,8 @@ _BLOCK_STOP_MARKERS = (
 )
 
 
-def extract_role_blocks(tex_path: Path) -> list[RoleBlock]:
-    """Return every ``\\resumeSubheading``/``\\resumeProjectHeading`` entry in
-    source order, with its full source extent (heading line through its
-    ``\\resumeItemListEnd``, or through its last heading/tabular line if it
-    has no item list).
-    """
-    stripped_lines, line_numbers, body, offset_to_line = _load_body(tex_path)
+def _role_blocks_from_body(stripped_lines, line_numbers, body, offset_to_line) -> list[RoleBlock]:
+    """Scan a stripped document body for role/project blocks (no disk I/O)."""
     line_to_idx = {ln: i for i, ln in enumerate(line_numbers)}
 
     current_section: str | None = None
@@ -360,6 +451,25 @@ def extract_role_blocks(tex_path: Path) -> list[RoleBlock]:
     return blocks
 
 
+def extract_role_blocks_from_text(raw_text: str) -> list[RoleBlock]:
+    """Text-core: return every role/project block, no disk I/O."""
+    stripped_lines, line_numbers, body, offset_to_line = _load_body_from_text(raw_text)
+    return _role_blocks_from_body(stripped_lines, line_numbers, body, offset_to_line)
+
+
+def extract_role_blocks(tex_path: Path) -> list[RoleBlock]:
+    """Return every ``\\resumeSubheading``/``\\resumeProjectHeading`` entry in
+    source order, with its full source extent (heading line through its
+    ``\\resumeItemListEnd``, or through its last heading/tabular line if it
+    has no item list).
+
+    Uses the cached body parse; for evolving in-memory text use
+    :func:`extract_role_blocks_from_text`.
+    """
+    stripped_lines, line_numbers, body, offset_to_line = _cached_load_body(tex_path)
+    return _role_blocks_from_body(stripped_lines, line_numbers, body, offset_to_line)
+
+
 def find_role_block(tex_path: Path, *, role: str) -> RoleBlock:
     """Resolve a role/project block by a case-insensitive substring of its
     ``role`` string (e.g. ``"Gemini"`` or ``"QA Engineer"``).
@@ -368,6 +478,21 @@ def find_role_block(tex_path: Path, *, role: str) -> RoleBlock:
     ambiguity must be resolved by the caller with a more specific substring.
     """
     blocks = extract_role_blocks(tex_path)
+    needle = role.lower()
+    matches = [b for b in blocks if needle in b.role.lower()]
+
+    if not matches:
+        raise BlockLookupError(f"no role block matching: {role!r}")
+    if len(matches) > 1:
+        raise BlockLookupError(
+            f"role {role!r} matches multiple entries: " + ", ".join(b.role for b in matches)
+        )
+    return matches[0]
+
+
+def find_role_block_from_text(raw_text: str, *, role: str) -> RoleBlock:
+    """Text-core: resolve a role/project block against in-memory ``raw_text``."""
+    blocks = extract_role_blocks_from_text(raw_text)
     needle = role.lower()
     matches = [b for b in blocks if needle in b.role.lower()]
 

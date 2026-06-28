@@ -15,7 +15,7 @@ import difflib
 from dataclasses import dataclass
 from pathlib import Path
 
-from .bullets import Bullet, RoleBlock
+from .bullets import Bullet, RoleBlock, find_unescaped_specials
 
 _DEFAULT_INDENT = " " * 8
 
@@ -64,6 +64,14 @@ def insert_bullet_text(
     """
     if not block.has_item_list or block.item_list_start_line is None or block.item_list_end_line is None:
         raise ValueError(f"role block {block.role!r} has no \\resumeItemListStart/End to insert into")
+
+    unsafe = find_unescaped_specials(new_bullet_raw)
+    if unsafe:
+        raise ValueError(
+            f"new bullet contains unescaped LaTeX special character(s) {unsafe} -- "
+            "escape as \\%, \\&, \\#, or \\_ (this is the same check apply_bullet "
+            "runs, so both write paths reject unescaped input identically)"
+        )
 
     if position not in ("start", "end", "after"):
         raise ValueError(f"invalid position: {position!r} (expected 'start', 'end', or 'after')")

@@ -34,6 +34,7 @@ def metrics_json(metrics: BulletMetrics, overfull: bool) -> dict:
         "last_line_fullness": metrics.last_line_fullness,
         "has_orphan": metrics.has_orphan,
         "meets_fullness_requirement": metrics.meets_fullness_requirement,
+        "phantom_blank_line_risk": metrics.phantom_blank_line_risk,
         "overfull": overfull,
         "page_count": metrics.page_count,
     }
@@ -104,8 +105,16 @@ def structure_diff_json(edit: StructureEdit) -> dict:
 
 def plan_comparison_json(cmp: PlanComparison) -> dict:
     return {
-        "before": {"page_count": cmp.before_page_count, "overfull": cmp.before_overfull},
-        "after": {"page_count": cmp.after_page_count, "overfull": cmp.after_overfull},
+        "before": {
+            "page_count": cmp.before_page_count,
+            "overfull": cmp.before_overfull,
+            "page_fill": cmp.before_page_fill,
+        },
+        "after": {
+            "page_count": cmp.after_page_count,
+            "overfull": cmp.after_overfull,
+            "page_fill": cmp.after_page_fill,
+        },
         "page_count_changed": cmp.page_count_changed,
         "fits_one_page": cmp.fits_one_page,
         "applied_ops": cmp.applied_ops,

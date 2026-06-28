@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-_METRIC_RE = re.compile(r"\$?\d[\d,.]*\s*(?:%|x\b|\+)?", re.IGNORECASE)
+_METRIC_RE = re.compile(r"\$?\d[\d,.]*\s*(?:\\?%|x\b|\+)?", re.IGNORECASE)
 
 _RESULT_MARKERS = {
     "by", "to", "for", "resulting", "reducing", "increasing", "improving",
@@ -44,7 +44,15 @@ def _starts_with_action_verb(first_word: str) -> bool:
 
 
 def _extract_metrics(text: str) -> set[str]:
-    return {m.group(0).strip() for m in _METRIC_RE.finditer(text) if any(c.isdigit() for c in m.group(0))}
+    # Normalize ``\%`` (LaTeX-escaped percent) to ``%`` so a candidate
+    # written as ``40\%`` matches an original ``40%`` -- otherwise the
+    # regex extracts bare ``40`` vs ``40%``, producing a spurious "high"
+    # truth risk for an unchanged number.
+    return {
+        m.group(0).strip().replace(r"\%", "%")
+        for m in _METRIC_RE.finditer(text)
+        if any(c.isdigit() for c in m.group(0))
+    }
 
 
 def _extract_entities(text: str) -> set[str]:
@@ -119,3 +127,159 @@ def compare_truth_risk(original: str, candidate: str) -> TruthRiskResult:
         truth_risk = "low"
 
     return TruthRiskResult(truth_risk=truth_risk, changed_entities=changed_entities)
+
+
+@dataclass
+class GroundingResult:
+    """Result of checking whether a bullet's references are grounded in the resume.
+
+    A bullet is 'self-grounding' if every proper noun / technical phrase it
+    references appears somewhere else in the resume (in a role heading, another
+    bullet, or the skills section).  Ungrounded terms reference context the
+    reader doesn't have — e.g. 'load replay harness' mentioned in one bullet
+    but never explained by the role or other bullets.
+    """
+    grounded: list[str]
+    ungrounded: list[str]
+    is_grounded: bool
+
+
+# Common words that look like proper nouns (capitalized) but are actually
+# generic terms, sentence-start words, or standard resume vocabulary that
+# doesn't need grounding.
+_GENERIC_CAPITALIZED = {
+    # Days/months/seasons
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
+    "Nov", "Dec", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
+    "Saturday", "Sunday", "Spring", "Summer", "Fall", "Autumn", "Winter",
+    # Standard resume acronyms/words
+    "API", "APIs", "UI", "UX", "AI", "ML", "QA", "CI", "CD", "SDK", "CLI",
+    "PR", "URL", "HTML", "CSS", "SQL", "REST", "ORM", "RPC", "GRPC",
+    "PDF", "CSV", "JSON", "XML", "YAML", "TOML", "Docker", "Kubernetes",
+    "Git", "React", "Node", "Redis", "MongoDB", "Postgres", "FastAPI",
+    "NextJS", "NestJS", "Zod", "SWR", "TailwindCSS", "Vercel", "Gemini",
+    "OpenAI", "Langchain", "Celery", "GridFS", "MUI", "Figma", "AWS",
+    "GCP", "Azure", "Supabase", "Prisma", "Docker", "TypeScript",
+    "JavaScript", "Python", "Java", "Swift", "Ruby", "Rust", "Go",
+    "Solidity", "Viem", "NextJS", "React",
+    # Common adjectives/words that happen to be capitalized
+    "I", "We", "The", "A", "An", "This", "That", "These", "Those",
+    "It", "They", "Our", "Their", "His", "Her", "Its",
+    "Material", "Natural", "Social",
+}
+
+# Multi-word technical phrases to check: sequences of 2+ capitalized words,
+# or known tech patterns like "gRPC X", "X harness", "X debug".
+_MULTI_WORD_RE = re.compile(
+    r"\b((?:[A-Z][a-z]+ )+[A-Z][a-z]+)\b"  # 2+ Capitalized Words
+    r"|\b([a-z]+ [a-z]+ (?:harness|debug|pipeline|engine|system|service|layer|module))\b"
+)
+
+
+def _extract_reference_terms(text: str) -> set[str]:
+    """Extract proper nouns and technical phrases that may need grounding.
+
+    Returns multi-word capitalized phrases (e.g. 'Load Replay Harness') and
+    single capitalized words that aren't generic vocabulary (e.g. 'GridFS').
+    Filters out the first word of the sentence (action verb position) and
+    common generic capitalized terms.
+    """
+    terms: set[str] = set()
+
+    words = text.split()
+    first_word = words[0].strip(".,:;()") if words else ""
+
+    # Multi-word capitalized phrases — skip phrases that start with the
+    # action verb (first word of the sentence, e.g. "Improved Node" from
+    # "Improved Node.js API performance").
+    for m in _MULTI_WORD_RE.finditer(text):
+        phrase = m.group(0).strip(".,:;()")
+        if not phrase:
+            continue
+        phrase_words = phrase.split()
+        if phrase_words and phrase_words[0] == first_word:
+            continue
+        terms.add(phrase)
+
+    # Single capitalized words (not at sentence start, not generic)
+    words = text.split()
+    for i, word in enumerate(words):
+        stripped = word.strip(".,:;()")
+        if not stripped or len(stripped) < 3:
+            continue
+        if i == 0:
+            continue  # action verb position
+        if stripped[0].isupper() and stripped not in _GENERIC_CAPITALIZED:
+            terms.add(stripped)
+
+    # Extract compact technical phrases ending in system-ish nouns.  Take at
+    # most the two preceding tokens so phrases like "gRPC polling debug" and
+    # "load replay harness" are flagged without swallowing generic lead-in
+    # words like "tests for the ...".
+    phrase_endings = {"harness", "debug", "pipeline", "engine", "system", "service", "layer", "module"}
+    cleaned_tokens = [w.strip(".,:;()").strip() for w in words]
+    for i, token in enumerate(cleaned_tokens):
+        if token.lower() not in phrase_endings:
+            continue
+        start = max(0, i - 2)
+        phrase_tokens = [t for t in cleaned_tokens[start : i + 1] if t]
+        if len(phrase_tokens) >= 2:
+            terms.add(" ".join(phrase_tokens))
+
+    return terms
+
+
+def check_grounding(
+    candidate: str,
+    resume_text: str,
+    *,
+    original: str = "",
+    pending_skills: list[str] | None = None,
+) -> GroundingResult:
+    """Check whether a candidate bullet's references are grounded in the resume.
+
+    ``resume_text`` is the full text of the resume (including role headings,
+    other bullets, skills).  ``original`` is the bullet text being replaced
+    (if any) — it's excluded from the "elsewhere in the resume" check so
+    that a replacement bullet can't ground itself in the very text it's
+    overwriting. ``pending_skills`` are terms (e.g. a tool name about to be
+    added to Technical Skills in a later phase) that should count as
+    grounded even though they don't yet appear in ``resume_text`` — without
+    this, a rewrite that references a skill scheduled for a later edit is
+    incorrectly flagged as ungrounded.
+
+    Returns grounded and ungrounded term lists.  A term is 'ungrounded' if
+    it doesn't appear in ``resume_text`` outside of ``original`` (case-
+    insensitive substring match) and doesn't match any ``pending_skills``
+    entry (case-insensitive substring match, either direction).
+    """
+    # Remove the original bullet text from the resume context so a
+    # replacement can't ground itself in what it's replacing.
+    context = resume_text
+    if original and original in context:
+        context = context.replace(original, "")
+
+    candidate_terms = _extract_reference_terms(candidate)
+    if not candidate_terms:
+        return GroundingResult(grounded=[], ungrounded=[], is_grounded=True)
+
+    context_lower = context.lower()
+    pending_lower = [s.lower() for s in (pending_skills or []) if s]
+
+    def _matches_pending(term_lower: str) -> bool:
+        return any(term_lower in p or p in term_lower for p in pending_lower)
+
+    grounded: list[str] = []
+    ungrounded: list[str] = []
+    for term in sorted(candidate_terms):
+        term_lower = term.lower()
+        if term_lower in context_lower or _matches_pending(term_lower):
+            grounded.append(term)
+        else:
+            ungrounded.append(term)
+
+    return GroundingResult(
+        grounded=grounded,
+        ungrounded=ungrounded,
+        is_grounded=len(ungrounded) == 0,
+    )
