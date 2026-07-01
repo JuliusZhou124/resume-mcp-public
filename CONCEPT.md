@@ -203,3 +203,4 @@ guessing.
 3. Define the structured scoring schema.
 4. Implement candidate rewrite generation with truth-risk checks.
 5. Add safe patching and diff review.
+6. Keep the public example repo in sync via the `sync-to-public.yml` workflow.
