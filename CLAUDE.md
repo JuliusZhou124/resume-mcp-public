@@ -302,5 +302,5 @@ is for MCP/skill improvement proposals only.
   risk / changed entity for an unchanged number — treat this as a known false
   positive, not a real truth risk, when the only "changed entity" is a bare
   number whose escaped form matches the original's metric.
-- **Target page fill**: aim for 100%–102% fill. Slightly overfull is fine
+- **Target page fill**: aim for 101%–103% fill. Slightly overfull is fine
   if the tool still reports `page_count: 1`.

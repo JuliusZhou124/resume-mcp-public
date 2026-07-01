@@ -27,10 +27,11 @@ paste in the job posting before running `/tailor`.
 3. Summarize the role's **top 5 competencies** from the posting. State these
    to the user so they can correct your reading before you proceed. Wait for
    confirmation before continuing.
-4. Keep a running log of the session in the global `CHANGES.md` at the repo
-   root rather than a per-resume file. Each entry is exactly three sentences:
-   two describing what changed, one describing why — no tables, no
-   per-bullet audit detail, no metrics dump.
+
+Do **not** write a session log, per-run summary, or tailoring history to
+`CHANGES.md` — that file is reserved for MCP/skill improvement proposals only
+(see CLAUDE.md). Report what changed to the user directly in the **Final
+report** at the end instead.
 
 ---
 
@@ -82,11 +83,18 @@ remove its heading too.
 
 ### 2b. Rewrite low-quality or Rel=2 bullets (user-approved)
 For bullets the user wants improved, run the `/fit-bullet` procedure inline:
-- Propose a rewrite that increases both relevance and `xyz_score`
-- `evaluate_candidate` → check `grounding.ungrounded` for ungrounded terms →
-  revise to be self-contained → `compare_candidate_layout`
-- `apply_bullet(confirm=true)` — check the `grounding` field in the response;
-  if `is_grounded` is false, warn the user and revise
+- Propose a rewrite that increases both relevance and `xyz_score`.
+- `evaluate_candidate` → **grounding gate**: inspect `grounding`. If
+  `is_grounded` is `false` (i.e. `grounding.ungrounded` is non-empty), do
+  **not** proceed to layout or apply — revise the candidate so every flagged
+  term is self-contained (explained by a role heading, another bullet, or a
+  skill), or add the missing skill via Phase 3 first, then re-run
+  `evaluate_candidate`. Only once `is_grounded` is `true` continue to
+  `compare_candidate_layout`.
+- `compare_candidate_layout` → confirm the layout/fullness gate passes.
+- `apply_bullet(confirm=true)` → re-check the `grounding` field in the
+  response as a final guard; if it comes back `is_grounded: false`, the apply
+  was refused — warn the user, revise, and retry rather than forcing it.
 
 **Self-grounding rule**: every bullet must be self-contained. If a bullet
 references a system, tool, or concept (e.g. "load replay harness", "gRPC
@@ -110,10 +118,15 @@ For each category (Languages, Frameworks, Developer Tools):
 - Propose removals of skills that are evidenced but irrelevant to this role
   (removing clutter improves signal)
 
-Show proposed changes to the user. For each approved change:
-`mcp__resume-fitter__apply_skill_category(category=..., new_items=..., confirm=true)`
-
-Check `compare_skill_layout` before applying to confirm no overfull.
+Show proposed changes to the user. For each approved change, in this order:
+1. `mcp__resume-fitter__diff_skill_candidate(category=..., new_items=...)` —
+   read-only; show the user the exact before/after diff of the category's
+   items string so they can see precisely what will change before anything is
+   written.
+2. `mcp__resume-fitter__compare_skill_layout(category=..., new_items=...)` —
+   confirm the change introduces no overfull / page-count regression.
+3. `mcp__resume-fitter__apply_skill_category(category=..., new_items=..., confirm=true)`
+   — the only mutating skills tool; no-ops without `confirm=true`.
 
 ---
 
@@ -122,26 +135,29 @@ Check `compare_skill_layout` before applying to confirm no overfull.
 Run the `/fill-page` procedure inline (do not invoke it as a separate skill —
 execute its steps directly so the role context and audit findings carry forward):
 
-1. `list_role_blocks` to map the resume structure.
-2. Identify competency gaps — required skills from `role.md` not yet
-   demonstrated by any bullet after Phase 2.
-3. Before drafting from scratch, call `list_resumes` and
-   `list_bullets(tex_path=...)` on the other `.tex` files in the workspace.
-   Past target resumes often phrase the same real work differently — one
-   version may already carry a metric or framing that fills the current gap
-   better than anything drafted fresh. A bullet found this way is real
+1. **Survey the workspace for reusable material first (required).** Before
+   drafting anything new, call `list_resumes` and then
+   `list_bullets(tex_path=...)` on every *other* `.tex` resume in the
+   workspace. Past target resumes often phrase the same real work differently
+   — one version may already carry a metric or framing that fills the current
+   gap better than anything drafted fresh. A bullet found this way is real
    material (same person, same work), not a fabrication risk — prefer
    reusing/adapting it over inventing new wording or asking the user for a
-   number. Only draft new or ask the user if nothing reusable fits.
+   number. Keep these reusable bullets on hand as you assess gaps in the next
+   steps; only draft new or ask the user if nothing reusable fits.
+2. `list_role_blocks` to map the active resume's structure.
+3. Identify competency gaps — required skills from `role.md` not yet
+   demonstrated by any bullet after Phase 2 — and match each gap against the
+   reusable bullets surfaced in step 1 before considering a fresh draft.
 4. Propose additions (reused or drafted), confirm with user, write as XYZ bullets.
 5. `evaluate_candidate` on each → `compare_plan_layout` for the full set.
 6. Apply via `add_bullet(confirm=true)`.
-7. Target **100% < page_fill < 102%**. Keep adding high-relevance bullets until
+7. Target **101% < page_fill < 103%**. Keep adding high-relevance bullets until
    the page is just overfull but still on one page, but never add filler.
 8. Prefer the **0.90–0.98** last-line fullness zone for single-line bullets;
    revise any bullet at 100% to avoid phantom blank lines.
 9. Final `compile_and_score` — confirm `page_count: 1`,
-   `1.0 < page_fill < 1.02`, and all scores.
+   `1.01 < page_fill < 1.03`, and all scores.
 
 ---
 
@@ -196,11 +212,11 @@ After all four phases:
 
 | Phase | What | Key tools |
 |-------|------|-----------|
-| Setup | Set active resume, read role.md, create `changes.md` | `set_active_resume` |
+| Setup | Set active resume, read role.md, confirm top-5 competencies | `set_active_resume` |
 | Audit | Score every bullet on relevance + XYZ | `compile_and_score`, `list_bullets` |
 | Rewrite/remove | Fix or cut weak/irrelevant bullets; cleanup empty blocks | `apply_bullet`, `remove_bullet`, `remove_role_block` |
 | Skills | Align Technical Skills to role | `apply_skill_category`, `evaluate_skill_candidate` |
-| Fill | Add high-relevance content to reach 100% < page_fill < 102% | `compare_plan_layout`, `add_bullet` |
+| Fill | Add high-relevance content to reach 101% < page_fill < 103% | `compare_plan_layout`, `add_bullet` |
 ## Hard rules (same as fit-bullet / fill-page)
 
 - Never Edit/Write `.tex` directly — hook blocks it.
