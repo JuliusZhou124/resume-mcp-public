@@ -180,6 +180,19 @@ calling the mutating tools with `confirm=True`.
 - tectonic doesn't implement `\pdfglyphtounicode`; `compile_tex` compiles a
   temp copy with `\input{glyphtounicode}` / `\pdfgentounicode=1` commented
   out. This has no effect on visual layout.
+- LaTeX renders a plain `'` as a curly `’` (and similarly for quotes/dashes);
+  `measure._normalize` maps these back to ASCII so source-text bullet
+  matching works against PDF-extracted text.
+- `ORPHAN_FULLNESS_THRESHOLD = 0.15` in `measure.py` is a separate, informal
+  constant from the hard `FULLNESS_REQUIREMENT_THRESHOLD` gate above — it
+  only flags a near-empty trailing line for information, it doesn't block
+  `apply_bullet`/`add_bullet`.
+- Candidate bullet text must escape percent signs as `\%` (plain `%` is a
+  LaTeX comment and breaks the compile). Because of that, a candidate's
+  `40\%` extracts as the bare metric `"40"`, which won't string-match an
+  original's `40%` — `compare_truth_risk` may report a spurious "high" risk
+  when the only "changed entity" is a number whose escaped form matches the
+  original.
 - If your environment sets a global `PYTHONPATH` (e.g. from a ROS install),
   override it to empty when running pytest: `PYTHONPATH=""`.
 
