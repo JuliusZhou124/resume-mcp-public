@@ -76,6 +76,19 @@ def _clean_cache():
     clear_compile_cache()
 
 
+@pytest.fixture(autouse=True)
+def _stub_tectonic_lookup(request, monkeypatch):
+    """Make `compile_tex`'s tectonic-on-PATH check pass without a real binary.
+
+    Every test here except the `@requires_tectonic` e2e one stubs
+    `_run_tectonic` and never actually shells out, so the real lookup would
+    only fail CI environments that lack tectonic for no good reason.
+    """
+    if request.node.get_closest_marker("skipif") is not None:
+        return
+    monkeypatch.setattr(compile_mod.shutil, "which", lambda *a, **k: "/usr/bin/tectonic")
+
+
 def _make_distinct_tex(tmp_path, n, base=RESUME_TEX):
     """Return n .tex files identical in meaning but differing by a trailing
     comment so each has a distinct content hash (distinct cache key)."""

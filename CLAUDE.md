@@ -279,9 +279,16 @@ is for MCP/skill improvement proposals only.
   tectonic's engine doesn't implement `\pdfglyphtounicode`, so `compile_tex`
   compiles a temp copy with those two lines commented out. This has no effect
   on visual layout.
-- **Typographic substitution**: LaTeX renders a plain `'` as a curly `'` (and
+- **Typographic substitution**: LaTeX renders a plain `'` as a curly `’` (and
   similar for quotes/dashes). `measure._normalize` maps these back to ASCII
   so source-text bullet matching works against PDF-extracted text.
+- **Live resume edits ripple into the test suite**: several tests treat
+  `resume.tex` as a fixture and hardcode current bullet text or absolute
+  line numbers. Any `confirm=True` apply/add/remove that changes a role
+  block's line count needs those fixtures updated to match — prefer reading
+  the current value dynamically (e.g. `record.raw`, `get_bullet(index=0)["bullet"]`)
+  over re-hardcoding a new literal. Run the full suite
+  (`venv/bin/python -m pytest -q`) after any live edit to catch this.
 - **`bullets.py` scope**: only `\resumeItem{...}` macro invocations in the
   document body are treated as bullets; LaTeX `%`-comments and preamble
   `\newcommand` definitions are excluded. Bullet `id`/`index` are positional
